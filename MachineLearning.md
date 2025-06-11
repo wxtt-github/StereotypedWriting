@@ -36,6 +36,12 @@
 $$
 L = \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2
 $$
+**均方根误差(RMSE、Root Mean Squared Error)**
+
+特点：MSE的平方根，与目标变量单位一致，更易解释。
+$$
+RMSE = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}
+$$
 **平均绝对误差(MAE、Mean Absolute Error)**
 
 特点：对离群点鲁棒，梯度恒定
@@ -234,6 +240,247 @@ PCA，全称Principal Component Analysis，主成分分析，基本原理是通�
 4） 选择主成分，选择最大的几个特征值对应的特征向量，以此作为降维后的新特征
 
 5） 生成新的数据集，将原始数据投影到选定的特征向量上，得到降维后的数据集
+
+**8.对于y=ax+b，写一个随机梯度递减算法？**
+
+SGD（Stochatic Gradient Descent）是一种优化目标函数（通常是损失函数）的迭代算法，核心思想是通过随机采样少量数据（甚至单样本）计算梯度来更新模型参数，而非使用全部数据。相比批量梯度下降（BGD），SGD计算效率更高，尤其适合大规模数据集和在线学习场景。
+
+**核心步骤**：
+
+1. 问题理解
+
+2. 确定损失函数
+
+3. 初始化参数
+
+4. 计算当前样本的损失梯度
+
+5. 沿梯度反方向更新参数
+
+6. 设定终止条件，达到最大迭代次数或梯度足够小
+
+**特点**：
+
+1. 随机性：通过单样本梯度估计整体梯度，引入噪声，可能逃离局部极小值
+2. 高效性：每轮迭代计算量远小于BGD
+3. 波动性：参数更新路径不稳定，但可以通过调整学习率缓解
+
+> 例子：对于线性模型y=ax+b，写一个随机梯度递减算法：
+
+**1.问题理解**：
+
+我们需要通过训练数据来拟合线性模型y=ax+b，其中a是斜率（权重），b是截距（偏置），目标是最小化预测值与真实值之间的误差（即损失函数）。
+
+**2.定义损失函数**：
+
+采用均方误差（MSE）作为损失函数：
+$$
+L(a,b) = \frac{1}{n} \sum_{i=1}^{n} (y_i - (ax_i + b))^2
+$$
+在SGD中，我们每次随机选取一个样本计算梯度，因此单样本损失为：
+$$
+L_i(a,b)=(y_i-(ax_i+b))^2
+$$
+**3.计算梯度**：
+
+对参数a和b分别求偏导
+$$
+\frac{\partial L_i}{\partial a} = -2x_i (y_i - (a x_i + b))
+$$
+
+$$
+\frac{\partial L_i}{\partial b} = -2(y_i - (a x_i + b))
+$$
+
+**4.参数更新**：
+
+SGD按一下规则迭代更新参数(η是学习率)：
+$$
+a \leftarrow a - \eta \cdot \frac{\partial L_i}{\partial a}
+$$
+
+$$
+b \leftarrow b - \eta \cdot \frac{\partial L_i}{\partial b}
+$$
+
+**5.代码实现**：
+
+```python
+"""
+SGD(Stochatic Gradient Descent),随机梯度下降算法
+SGD的随机采样方式有两种,一种是逐样本完全随机(True SGD),一种是随机洗牌顺序(Shuffle-per-Epoch SGD)
+这里我实现的是第二种,因为第一种不保证每个样本在一个epoch都能被使用
+"""
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 生成数据
+np.random.seed(42)
+X = np.array([1, 2, 3, 4, 5])  # 输入特征
+y = np.array([2, 4, 6, 8, 10]) # 真实值 (y = 2x + 0)
+
+# 初始化参数
+# a, b = 0.0, 0.0
+a, b = np.random.rand(), np.random.rand()
+
+print(f"初始参数: a = {a:.4f}, b = {b:.4f}")
+
+lr = 0.01         # 学习率
+epochs = 1000      # 训练轮数
+
+# 存储训练历史
+history = []
+
+# SGD 训练
+for epoch in range(epochs):
+    # 每个 epoch 开始时打乱数据顺序（Shuffle-per-Epoch SGD）
+    indices = np.arange(len(X))
+    np.random.shuffle(indices)
+    
+    for i in indices:  # 逐样本训练
+        # 计算预测值
+        y_pred = a * X[i] + b
+        
+        # 计算梯度（MSE 对 a 和 b 的偏导）
+        grad_a = -2 * X[i] * (y[i] - y_pred)
+        grad_b = -2 * (y[i] - y_pred)
+        
+        # 更新参数
+        a -= lr * grad_a
+        b -= lr * grad_b
+    
+    # 记录当前参数和损失
+    loss = np.mean((y - (a * X + b)) ** 2)
+    history.append((a, b, loss))
+
+# 输出最终参数
+print(f"最终参数: a = {a:.4f}, b = {b:.4f}")
+
+# 绘制训练过程
+plt.figure(figsize=(10, 4))
+# 1行2列,排序方式为从左到右,从上到下,序号从1开始,选择第1个位置
+plt.subplot(1, 2, 1)
+plt.plot([h[0] for h in history], label='a (slope)')
+plt.plot([h[1] for h in history], label='b (intercept)')
+plt.xlabel('Epoch')
+plt.ylabel('Parameter Value')
+plt.legend()
+
+# 1行2列,排序方式为从左到右,从上到下,序号从1开始,选择第2个位置
+plt.subplot(1, 2, 2)
+plt.plot([h[2] for h in history], label='Loss (MSE)')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+**扩展知识**
+
+① 批量梯度下降（BGD） vs 随机梯度下降（SGD）
+
+- **BGD(Batch Gradient Descent)**
+
+  - 每次迭代使用**所有样本**计算梯度，更新参数：
+    $$
+    \frac{\partial L}{\partial a} = -\frac{2}{N} \sum_{i=1}^{N} x_i (y_i - (a x_i + b))
+    $$
+
+  - 优点：梯度方向稳定，收敛到全局最优（凸函数时）。
+
+  - 缺点：计算开销大（尤其大数据集时）。
+
+- **SGD(Stochastic Gradient Descent)**
+
+  - 每次迭代**随机选一个样本**计算梯度，更新参数：
+    $$
+    \frac{\partial L_i}{\partial a} = -2x_i (y_i - (a x_i + b))
+    $$
+    
+
+  - 优点：计算快，适合在线学习（流数据）。
+
+  - 缺点：梯度方向波动大，收敛路径震荡（但可通过调整学习率缓解）。
+
+② 为什么SGD用单样本损失？
+
+MSE 的原始定义是所有样本的平均误差：
+$$
+L(a,b) = \frac{1}{N} \sum_{i=1}^{N} (y_i - (a x_i + b))^2
+$$
+但在SGD中，每次更新只用一个样本，因此直接优化该样本的损失：
+$$
+L_i(a,b) = (y_i - (a x_i + b))^2
+$$
+**数学本质**：SGD 的期望梯度等于BGD的梯度（因为随机样本的梯度是无偏估计）。
+
+**直观理解**：用噪声（单样本）近似真实梯度，牺牲稳定性换速度。
+
+③ 为什么SGD用单样本损失？
+
+**MSE 的优点**
+
+1. **凸性**（对于线性回归）
+
+   - MSE 是二次函数，保证存在全局最优解（适合梯度下降）。
+
+2. **导数光滑**
+
+   - 梯度计算简单（线性导数），利于优化：
+     $$
+     \frac{\partial L}{\partial a} \propto (y_i - \hat{y}_i) x_i
+     $$
+
+3. **对离群点的敏感性**
+
+- 平方误差会放大离群点的影响，这在数据干净时是有利的（强调大误差）。
+
+**其他损失函数的适用场景**
+
+1. **MAE（Mean Absolute Error）**
+   $$
+   L = \frac{1}{N} \sum |y_i - \hat{y}_i|
+   $$
+
+   - **优点**：对离群点更鲁棒。
+   - **缺点**：导数不连续（在 $y_i = \hat{y}_i$ 处不可导），优化效率低。
+
+2. **Huber Loss**
+
+$$
+L = 
+\begin{cases} 
+\frac{1}{2}(y_i - \hat{y}_i)^2 & \text{if } |y_i - \hat{y}_i| \leq \delta, \\
+\delta |y_i - \hat{y}_i| - \frac{1}{2}\delta^2 & \text{otherwise.}
+\end{cases}
+$$
+
+- **优点**：平衡MSE和MAE，对离群点鲁棒且可导。
+
+**为什么线性回归默认用MSE？**
+
+- **统计视角**：MSE 等价于**极大似然估计（MLE）**（假设误差服从高斯分布）。
+- **计算效率**：梯度形式简单，适合迭代优化（如SGD）。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
